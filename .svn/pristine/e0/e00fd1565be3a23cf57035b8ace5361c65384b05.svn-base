@@ -1,0 +1,246 @@
+package com.jas.corporatecall;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Date;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.database.ContentObserver;
+import android.database.Cursor;
+import android.os.Environment;
+import android.os.Handler;
+import android.provider.CallLog;
+import android.provider.ContactsContract;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+
+import com.jas.corporatecall.broadcast.CorporateReceiver;
+import com.jas.corporatecall.db.DBAdapter;
+
+public class CustomPhoneStateListener extends PhoneStateListener
+{
+	int prev_state = 0;
+	private static final String TAG = "PhoneStateChanged";
+	private String fileNameCorporate = "CorporateCallLog";
+	private String fileNamePersonal = "PersonalCallLog";
+	private int totalKyats = 0;
+	Context context; // Context to make Toast if required
+	public int durationIndex;
+	String callName;
+	CorporateReceiver myreciver = new CorporateReceiver();
+	Activity activity;
+	FileOutputStream out;
+
+	public CustomPhoneStateListener(Context context)
+	{
+		super();
+		this.context = context;
+	}
+
+	@Override
+	public void onCallStateChanged(int state, String incomingNumber)
+	{
+		super.onCallStateChanged(state, incomingNumber);
+		String checknumber = myreciver.outgoingno;
+		final CustomDialog cd = new CustomDialog();
+		// String checknumbers = db.Exist(checknumber);
+		switch (state) {
+
+			case TelephonyManager.CALL_STATE_RINGING:
+
+				Log.e("mykey", "================= CALL_STATE_RINGING ");
+				prev_state = state;
+				break;
+			case TelephonyManager.CALL_STATE_IDLE:
+
+				Log.e("mykey", "================= CALL_STATE_IDLE ");
+
+				if ((prev_state == TelephonyManager.CALL_STATE_OFFHOOK))
+				{
+					prev_state = state;
+					// Answered Call which is ended
+					try
+					{
+						Handler handler = new Handler();
+						handler.postDelayed(new Runnable() {
+							public void run()
+							{
+								if (cd.Callperson_or_work.equals("office"))
+								{
+									Log.e("mykey", "================= office");
+									writeToFile(fileNameCorporate, ".txt", getLastCallDetails());
+								}
+								if (cd.Callperson_or_work.equals("Home"))
+								{
+									Log.e("mykey", "================= Home");
+									writeToFile(fileNamePersonal, "", getLastCallDetails());
+								}
+							}
+						}, 10000);
+					} catch (Exception e)
+					{
+
+					}
+				}
+				if ((prev_state == TelephonyManager.CALL_STATE_RINGING))
+				{
+					prev_state = state;
+					// Rejected or Missed call
+				}
+				break;
+			case TelephonyManager.CALL_STATE_OFFHOOK:
+				Log.e("mykey", "=================CALL_STATE_OFFHOOK");
+				prev_state = state;
+				// if (checkOffHook == 1)
+				// {
+				// Log.e("mykey", "=================CALL_STATE_OFFHOOK");
+				// isCheck = true;
+				// checkOffHook = 2;
+				// }
+				break;
+
+			default:
+				break;
+		}
+
+		// super.onCallStateChanged(state, incomingNumber);
+		// tm.listen(this, PhoneStateListener.LISTEN_NONE);
+	}
+
+	public String getLastCallDetails()
+	{
+
+		StringBuffer sb = new StringBuffer();
+		Cursor managedCursor = context.getContentResolver().query(CallLog.Calls.CONTENT_URI, null, null, null, null);
+		int number = managedCursor.getColumnIndex(CallLog.Calls.NUMBER);
+		int type = managedCursor.getColumnIndex(CallLog.Calls.TYPE);
+		int date = managedCursor.getColumnIndex(CallLog.Calls.DATE);
+		int duration = managedCursor.getColumnIndex(CallLog.Calls.DURATION);
+		sb.append("Call Log :");
+
+		managedCursor.moveToLast();
+		try
+		{
+			callName = managedCursor.getString(managedCursor.getColumnIndex(android.provider.CallLog.Calls.CACHED_NAME));
+		} catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+		String phNumber = managedCursor.getString(number);
+		String callType = managedCursor.getString(type);
+		String callDate = managedCursor.getString(date);
+		Date callDayTime = new Date(Long.valueOf(callDate));
+		String callDuration = managedCursor.getString(duration);
+		int orgDuration = Integer.parseInt(callDuration);
+		String actualCallDuration = getDurationString(orgDuration);
+
+		String dir = null;
+		int dircode = Integer.parseInt(callType);
+
+		if (dircode == CallLog.Calls.OUTGOING_TYPE)
+		{
+			dir = "OUTGOING";
+			sb.append("\nContact Name:--- " + callName + "\nPhone Number:--- " + phNumber + " \nCall Type:--- " + dir + " \nCall Date:--- " + callDayTime + " \nCall duration :--- " + actualCallDuration + "\n Call Cost : -- " + totalKyats + " Kyats");
+			Log.e("mykey", "=================Call Log" + sb);
+			sb.append("\n----------------------------------");
+
+			// String lastCall = sb.toString();
+
+		}
+		String lastCall = sb.toString();
+		// textView.setText(lastCall);
+		managedCursor.close();
+		// callCost;
+
+		return lastCall;
+
+	}
+
+	private String getDurationString(int seconds)
+	{
+
+		int hours = seconds / 3600;
+		int minutes = (seconds % 3600) / 60;
+		seconds = seconds % 60;
+
+		int hourKyats = Integer.parseInt(twoDigitString(hours)) * 60 * 50;
+		int minKyats = Integer.parseInt(twoDigitString(minutes)) * 50;
+		int secKyats = Integer.parseInt(twoDigitString(seconds));
+
+		if (secKyats > 0)
+		{
+			secKyats = 50;
+
+		}
+		totalKyats = hourKyats + minKyats + secKyats;
+		return twoDigitString(hours) + " : " + twoDigitString(minutes) + " mins" + " : " + twoDigitString(seconds) + " secs";
+	}
+
+	private String twoDigitString(int number)
+	{
+
+		if (number == 0)
+		{
+			return "00";
+		}
+
+		if (number / 10 == 0)
+		{
+			return "0" + number;
+		}
+
+		return String.valueOf(number);
+	}
+
+	public void write(String log)
+	{
+		try
+		{
+			out = context.openFileOutput("MyCallLog", Context.MODE_APPEND);
+			out.write(log.getBytes());
+			out.close();
+		} catch (Exception e)
+		{
+			// no file
+			e.printStackTrace();
+		}
+	}
+
+	public void writeToFile(String fileName, String fileType, String body)
+	{
+		try
+		{
+			final File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Corporate/");
+
+			if (!dir.exists())
+			{
+				dir.mkdirs();
+			}
+
+			final File myFile = new File(dir, fileName + fileType);// + ".txt");
+
+			if (!myFile.exists())
+			{
+				myFile.createNewFile();
+			}
+
+			// fos = new FileOutputStream(myFile);
+
+			// fos.write(body.getBytes());
+			// fos.close();
+			FileWriter writer = new FileWriter(myFile, true);
+			writer.append(body);
+			writer.flush();
+			writer.close();
+		} catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+}

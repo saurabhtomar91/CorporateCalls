@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="white">#FFFFFF</color>
+    <color name="yellow">#FFFF00</color>
+    <color name="fuchsia">#FF00FF</color>
+    <color name="red">#FF0000</color>
+    <color name="silver">#C0C0C0</color>
+    <color name="gray">#4b4b4b</color>
+    <color name="olive">#808000</color>
+    <color name="purple">#800080</color>
+    <color name="skyblue">#42C0FB</color>
+    <color name="maroon">#800000</color>
+    <color name="aqua">#00FFFF</color>
+    <color name="lime">#00FF00</color>
+    <color name="teal">#008080</color>
+    <color name="green">#008000</color>
+    <color name="blue">#2B65EC</color>
+    <color name="navy">#000080</color>
+    <color name="black">#000000</color>
+    <color name="bookstore_header_bg">#F1F5F9</color>
+    <color name="bookstore_header_txt_color">#FF9E08</color>
+    <color name="bookstore_header_titles_color">#333333</color>
+    <color name="bookstore_arrow_color">#D9722D</color>
+    <color name="bookstore_blue_seperator">#83ABC6</color>
+    <color name="bookstore_listview_bg">#EDF7FF</color>
+    <color name="bookstore_listview_focus">#A1DBF4</color>
+    <color name="divider">#383838</color>
+    <color name="darkgray">#272727</color>
+    <color name="darkblue">#1A1A65</color>
+    <color name="selecter">#242424</color>
+    <color name="notselecter">#393939</color>
+
+    <color name="dark_gray">#7b7b7b</color>
+    <color name="light_gray">#b3b3b3</color>
+    <color name="light_dim_green">#bad191</color>
+    <color name="light_dim_grey">#d1be94</color>
+    <color name="wooden">#663300</color>
+    <color name="glassColor">#0a7566</color>
+    <color name="dark_slate_gray">#2F4F4F</color>
+	<color name="gray_2">#AFAFAF</color>
+	<color name="gray_1">#C0C0C0</color>
+        <color name="player_progress_color">#46af02</color>
+    <color name="player_progress_top">#54d102</color>
+    <color name="player_progress_bottom">#45ac02</color>
+    <color name="player_buffer_top">#304720</color>
+    <color name="player_buffer_bottom">#465d36</color>
+    <color name="transparent">#00000000</color>
+    <color name="settings_field_cnt_valid">#ff929394</color>
+    <!-- Color declaration for sliding drawer -->
+    <color name="list_background">#303030</color>
+    <color name="list_background_pressed">#992416</color>
+    <color name="list_divider">#272727</color>
+    <color name="counter_text_bg">#626262</color>
+    <color name="counter_text_color">#c5c4c4</color>
+    <color name="appbg">#4f4f53</color>
+    
+    <!-- Ends here -->
+</resources>

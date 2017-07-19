@@ -1,0 +1,185 @@
+package com.jas.corporatecall;
+
+/**
+ * Author Saurabh
+ */
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Shader.TileMode;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.provider.Settings.Secure;
+import android.telephony.TelephonyManager;
+import android.view.View;
+import android.widget.AutoCompleteTextView.Validator;
+import android.widget.EditText;
+import android.widget.ImageView;
+
+import com.jas.corporatecall.utils.AppConstants;
+import com.jas.corporatecall.utils.AsyncHttpRequest;
+import com.jas.corporatecall.utils.AsyncHttpRequest.RequestListener;
+import com.jas.corporatecall.utils.MySharedPrefrence;
+import com.jas.corporatecall.utils.RequestProgressDialog;
+import com.jas.corporatecall.utils.Utils;
+
+public class RegistrationActivity extends Activity implements RequestListener, AppConstants, OnCancelListener
+{
+	EditText userPhone;
+	EditText userName;
+	EditText userDepartment;
+	private AsyncHttpRequest mAppRequest;
+	RequestProgressDialog mProgDailog;
+
+	String registrationCredentials, deviceid, devicename, name, phone, emailid;
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState)
+	{
+		super.onCreate(savedInstanceState);
+
+		if (MySharedPrefrence.getUserName(this).length() > 1)
+		{
+			startIntent();
+		}
+		else
+		{
+			setContentView(R.layout.activity_registration);
+			setTitle(getResources().getString(R.string.register));
+
+			userName = (EditText) findViewById(R.id.registration_username);
+			userPhone = (EditText) findViewById(R.id.registration_phonenumber);
+			userDepartment = (EditText) findViewById(R.id.registration_email);
+			getDeviceIdName();
+		}
+	}
+
+	Drawable getActionbarBGTheme(int icon)
+	{
+		BitmapDrawable bg = (BitmapDrawable) getResources().getDrawable(icon);
+		bg.setTileModeXY(TileMode.REPEAT, TileMode.REPEAT);
+		return bg;
+	}
+
+	public void onClick(View v)
+	{
+		name = userName.getText().toString();
+		phone = userPhone.getText().toString();
+		emailid = userDepartment.getText().toString();
+		if (name.length() < 1)
+		{
+			userName.setText("");
+			userName.setHint("Invalid Name");
+			userName.setHintTextColor(Color.RED);
+		}
+		else
+		{
+			if (phone.length() < 8)
+			{
+				userPhone.setText("");
+				userPhone.setHint("Invalid Phone Number");
+				userPhone.setHintTextColor(Color.RED);
+			}
+			else
+			{
+				if (emailid.length() < 3)
+				{
+					userDepartment.setText("");
+					userDepartment.setHint("Invalid EMail");
+					userDepartment.setHintTextColor(Color.RED);
+				}else
+				{
+					registrationCredentials = "device_id=" + deviceid + "&" + "device_name=" + devicename + "&" + "user_name=" + name + "&" + "mobile_no=" + phone + "&" + "email_id=" + emailid;
+					String url = HTTP_REGISTRATION + registrationCredentials;
+					url = url.replaceAll(" ", "");
+					requestType(url, TYPE_REGISTRATION, REGISTRATION);
+				}
+			}
+		}
+	}
+
+	private void startIntent()
+	{
+		Intent intent = new Intent(this, HomeActivity.class);
+		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+		startActivity(intent);
+		finish();
+	}
+
+	private void checkVisible(View v)
+	{
+		v.setVisibility(View.VISIBLE);
+	}
+
+	@Override
+	public void onRequestCompleted(String response, int requestCode)
+	{
+		dismissDialog();
+		MySharedPrefrence.setUserName(this, userName.getText().toString());
+		startIntent();
+	}
+
+	@Override
+	public void onRequestError(Exception e, int requestCode)
+	{
+		dismissDialog();
+	}
+
+	@Override
+	public void onRequestStarted(int requestCode)
+	{
+
+		mProgDailog = new RequestProgressDialog(this, getResources().getString(R.string.loading), requestCode);
+		mProgDailog.setOnCancelListener(this);
+		mProgDailog.show();
+	}
+
+	protected void requestType(String url, int reqwat, String type)
+	{
+
+		if (Utils.isConnectedToInternet(this))
+		{
+
+			Bundle params = new Bundle();
+			mAppRequest = new AsyncHttpRequest(getApplicationContext(), url, params, reqwat, AsyncHttpRequest.Type.POST);
+			mAppRequest.setRequestListener(this);
+			mAppRequest.execute();
+
+		}
+		else
+		{
+			Utils.showAlert(this, getString(R.string.no_internet));
+		}
+	}
+
+	public void getDeviceIdName()
+	{
+		deviceid = null;
+		devicename = null;
+		TelephonyManager tm = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+		if (tm != null)
+			deviceid = tm.getDeviceId();
+		devicename = android.os.Build.MODEL;
+		if (deviceid == null || deviceid.length() == 0)
+			deviceid = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
+	}
+
+	@Override
+	public void onCancel(DialogInterface dialog)
+	{
+		// TODO Auto-generated method stub
+
+	}
+
+	protected void dismissDialog()
+	{
+		if (mProgDailog != null && mProgDailog.isShowing())
+			mProgDailog.dismiss();
+	}
+
+}

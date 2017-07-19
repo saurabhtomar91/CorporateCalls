@@ -1,0 +1,429 @@
+package com.jas.corporatecall;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.Format;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import org.apache.poi.hssf.record.crypto.Biff8DecryptingStream;
+import org.apache.poi.hssf.record.crypto.Biff8EncryptionKey;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.ss.usermodel.Row;
+
+import android.app.Activity;
+import android.content.Context;
+import android.database.Cursor;
+import android.os.Environment;
+import android.os.Handler;
+import android.provider.CallLog;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+
+import com.jas.corporatecall.broadcast.CorporateReceiver;
+
+public class CustomPhoneStateListener extends PhoneStateListener
+{
+	int prev_state = 0;
+	private static final String TAG = "PhoneStateChanged";
+	private static int excelNumberCorporate = 1;
+	private static int excelNumberPersonal = 1;
+	File myFile;
+	HSSFWorkbook workbook;
+	private String fileNameCorporate = "CorporateCallLog";
+	private String fileNamePersonal = "cscriptpersnlg";
+	private int totalKyats = 0;
+	Context context; // Context to make Toast if required
+	public int durationIndex;
+	String callName;
+	String phNumber;
+	String callType;
+	String dateTime;
+	String actualCallDuration;
+	String typeOutgoing;
+	CorporateReceiver myreciver = new CorporateReceiver();
+	Activity activity;
+	FileOutputStream out;
+
+	public CustomPhoneStateListener(Context context)
+	{
+		super();
+		this.context = context;
+	}
+
+	@Override
+	public void onCallStateChanged(int state, String incomingNumber)
+	{
+		super.onCallStateChanged(state, incomingNumber);
+		String checknumber = myreciver.outgoingno;
+		final CustomDialog cd = new CustomDialog();
+		// String checknumbers = db.Exist(checknumber);
+		switch (state) {
+
+			case TelephonyManager.CALL_STATE_RINGING:
+
+				Log.e("mykey", "================= CALL_STATE_RINGING ");
+				prev_state = state;
+				break;
+			case TelephonyManager.CALL_STATE_IDLE:
+
+				Log.e("mykey", "================= CALL_STATE_IDLE ");
+
+				if ((prev_state == TelephonyManager.CALL_STATE_OFFHOOK))
+				{
+					prev_state = state;
+					// Answered Call which is ended
+					try
+					{
+						Handler handler = new Handler();
+						handler.postDelayed(new Runnable() {
+							public void run()
+							{
+								try
+								{
+									if (cd.Callperson_or_work.equals("office"))
+									{
+										getLastCallDetails();
+										Log.e("mykey", "================= office");
+										createExcelSheetCorporate(fileNameCorporate, ".xls");
+										// writeToFile(fileNameCorporate,
+										// ".txt", getLastCallDetails());
+									}
+									if (cd.Callperson_or_work.equals("Home"))
+									{
+										getLastCallDetails();
+										Log.e("mykey", "================= Home");
+										createExcelSheetPersonal(fileNamePersonal, "");
+										// writeToFile(fileNamePersonal, "",
+										// getLastCallDetails());
+									}
+								} catch (Exception e)
+								{
+									e.printStackTrace();
+								}
+							}
+						}, 10000);
+					} catch (Exception e)
+					{
+						e.printStackTrace();
+					}
+				}
+				if ((prev_state == TelephonyManager.CALL_STATE_RINGING))
+				{
+					prev_state = state;
+					// Rejected or Missed call
+				}
+				break;
+			case TelephonyManager.CALL_STATE_OFFHOOK:
+				Log.e("mykey", "=================CALL_STATE_OFFHOOK");
+				prev_state = state;
+				// if (checkOffHook == 1)
+				// {
+				// Log.e("mykey", "=================CALL_STATE_OFFHOOK");
+				// isCheck = true;
+				// checkOffHook = 2;
+				// }
+				break;
+
+			default:
+				break;
+		}
+
+		// super.onCallStateChanged(state, incomingNumber);
+		// tm.listen(this, PhoneStateListener.LISTEN_NONE);
+	}
+
+	public String getLastCallDetails()
+	{
+
+		StringBuffer sb = new StringBuffer();
+		Cursor managedCursor = context.getContentResolver().query(CallLog.Calls.CONTENT_URI, null, null, null, null);
+		int number = managedCursor.getColumnIndex(CallLog.Calls.NUMBER);
+		int type = managedCursor.getColumnIndex(CallLog.Calls.TYPE);
+		int date = managedCursor.getColumnIndex(CallLog.Calls.DATE);
+		int duration = managedCursor.getColumnIndex(CallLog.Calls.DURATION);
+		sb.append("Call Log :");
+
+		managedCursor.moveToLast();
+		try
+		{
+			callName = managedCursor.getString(managedCursor.getColumnIndex(android.provider.CallLog.Calls.CACHED_NAME));
+		} catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+		phNumber = managedCursor.getString(number);
+		callType = managedCursor.getString(type);
+		String callDate = managedCursor.getString(date);
+		Date callDayTime = new Date(Long.valueOf(callDate));
+		Format formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss aa");
+		dateTime = formatter.format(callDayTime);
+		String callDuration = managedCursor.getString(duration);
+		int orgDuration = Integer.parseInt(callDuration);
+		actualCallDuration = getDurationString(orgDuration);
+
+		typeOutgoing = null;
+		int dircode = Integer.parseInt(callType);
+
+		if (dircode == CallLog.Calls.OUTGOING_TYPE)
+		{
+			typeOutgoing = "OUTGOING";
+			sb.append("\nContact Name:--- " + callName + "\nPhone Number:--- " + phNumber + " \nCall Type:--- " + typeOutgoing + " \nCall Date:--- " + dateTime + " \nCall duration :--- " + actualCallDuration + "\n Call Cost : -- " + totalKyats + " Kyats");
+			Log.e("mykey", "=================Call Log" + sb);
+			sb.append("\n----------------------------------");
+
+			// String lastCall = sb.toString();
+
+		}
+		String lastCall = sb.toString();
+		// textView.setText(lastCall);
+		managedCursor.close();
+		// callCost;
+
+		return lastCall;
+
+	}
+
+	private void createExcelSheetCorporate(String fileName, String fileType)
+	{
+		try
+		{
+			final File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Corporate/");
+
+			if (!dir.exists())
+			{
+				dir.mkdirs();
+			}
+
+			myFile = new File(dir, fileName + fileType);// + ".txt");
+
+			if (!myFile.exists())
+			{
+				myFile.createNewFile();
+
+				HSSFWorkbook workbook = new HSSFWorkbook();
+				HSSFSheet sheet = workbook.createSheet("Calculate Corporate Call");
+
+				Row header = sheet.createRow(0);
+				header.createCell(0).setCellValue("Contact Name");
+				header.createCell(1).setCellValue("Phone Number");
+				header.createCell(2).setCellValue("Call Type");
+				header.createCell(3).setCellValue("Call Date");
+				header.createCell(4).setCellValue("Call Duration");
+				header.createCell(5).setCellValue("Call Cost");
+
+				Row dataRow = sheet.createRow(excelNumberCorporate);
+				dataRow.createCell(0).setCellValue(callName);
+				dataRow.createCell(1).setCellValue(phNumber);
+				dataRow.createCell(2).setCellValue(typeOutgoing);
+				dataRow.createCell(3).setCellValue(dateTime);
+				dataRow.createCell(4).setCellValue(actualCallDuration);
+				dataRow.createCell(5).setCellValue(totalKyats);
+
+				FileOutputStream out = new FileOutputStream(myFile);
+				workbook.write(out);
+				out.close();
+				System.out.println("Excel written successfully..");
+			}
+			else
+			{
+				FileInputStream fileInput = new FileInputStream(myFile);
+				BufferedInputStream bufferInput = new BufferedInputStream(fileInput);
+				POIFSFileSystem poiFileSystem = new POIFSFileSystem(bufferInput);
+
+				Biff8EncryptionKey.setCurrentUserPassword("jasadmin");
+				HSSFWorkbook workbook = new HSSFWorkbook(poiFileSystem,true);
+				HSSFSheet sheet = workbook.getSheetAt(0);
+
+				Row dataRow = sheet.createRow(excelNumberCorporate);
+				dataRow.createCell(0).setCellValue(callName);
+				dataRow.createCell(1).setCellValue(phNumber);
+				dataRow.createCell(2).setCellValue(typeOutgoing);
+				dataRow.createCell(3).setCellValue(dateTime);
+				dataRow.createCell(4).setCellValue(actualCallDuration);
+				dataRow.createCell(5).setCellValue(totalKyats);
+
+				FileOutputStream out = new FileOutputStream(myFile);
+				workbook.writeProtectWorkbook(Biff8EncryptionKey.getCurrentUserPassword(), "admin");
+				workbook.write(out);
+				out.close();
+				System.out.println("Excel written successfully..");
+			}
+			excelNumberCorporate++;
+			Log.e("mykey", "================= excelNumberCorporate" + excelNumberCorporate);
+		} catch (FileNotFoundException e)
+		{
+			e.printStackTrace();
+		} catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	private void createExcelSheetPersonal(String fileName, String fileType)
+	{
+		try
+		{
+			final File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Corporate/");
+
+			if (!dir.exists())
+			{
+				dir.mkdirs();
+			}
+
+			myFile = new File(dir, fileName + fileType);// + ".txt");
+
+			if (!myFile.exists())
+			{
+				myFile.createNewFile();
+
+				HSSFWorkbook workbook = new HSSFWorkbook();
+				HSSFSheet sheet = workbook.createSheet("Calculate Corporate Call");
+
+				Row header = sheet.createRow(0);
+				header.createCell(0).setCellValue("Contact Name");
+				header.createCell(1).setCellValue("Phone Number");
+				header.createCell(2).setCellValue("Call Type");
+				header.createCell(3).setCellValue("Call Date");
+				header.createCell(4).setCellValue("Call Duration");
+				header.createCell(5).setCellValue("Call Cost");
+
+				Row dataRow = sheet.createRow(excelNumberPersonal);
+				dataRow.createCell(0).setCellValue(callName);
+				dataRow.createCell(1).setCellValue(phNumber);
+				dataRow.createCell(2).setCellValue(typeOutgoing);
+				dataRow.createCell(3).setCellValue(dateTime);
+				dataRow.createCell(4).setCellValue(actualCallDuration);
+				dataRow.createCell(5).setCellValue(totalKyats);
+
+				FileOutputStream out = new FileOutputStream(myFile);
+				workbook.write(out);
+				out.close();
+				System.out.println("Excel written successfully..");
+			}
+			else
+			{
+				FileInputStream fileInput = new FileInputStream(myFile);
+				BufferedInputStream bufferInput = new BufferedInputStream(fileInput);
+				POIFSFileSystem poiFileSystem = new POIFSFileSystem(bufferInput);
+
+				Biff8EncryptionKey.setCurrentUserPassword("jasadmin");
+				HSSFWorkbook workbook = new HSSFWorkbook(poiFileSystem,true);
+				HSSFSheet sheet = workbook.getSheetAt(0);
+
+				Row dataRow = sheet.createRow(excelNumberPersonal);
+				dataRow.createCell(0).setCellValue(callName);
+				dataRow.createCell(1).setCellValue(phNumber);
+				dataRow.createCell(2).setCellValue(typeOutgoing);
+				dataRow.createCell(3).setCellValue(dateTime);
+				dataRow.createCell(4).setCellValue(actualCallDuration);
+				dataRow.createCell(5).setCellValue(totalKyats);
+
+				FileOutputStream out = new FileOutputStream(myFile);
+				workbook.writeProtectWorkbook(Biff8EncryptionKey.getCurrentUserPassword(), "admin");
+				workbook.write(out);
+				out.close();
+				System.out.println("Excel written successfully..");
+			}
+			excelNumberPersonal++;
+			Log.e("mykey", "================= excelNumberPersonal" + excelNumberPersonal);
+		} catch (FileNotFoundException e)
+		{
+			e.printStackTrace();
+		} catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	private String getDurationString(int seconds)
+	{
+
+		int hours = seconds / 3600;
+		int minutes = (seconds % 3600) / 60;
+		seconds = seconds % 60;
+
+		int hourKyats = Integer.parseInt(twoDigitString(hours)) * 60 * 50;
+		int minKyats = Integer.parseInt(twoDigitString(minutes)) * 50;
+		int secKyats = Integer.parseInt(twoDigitString(seconds));
+
+		if (secKyats > 0)
+		{
+			secKyats = 50;
+
+		}
+		totalKyats = hourKyats + minKyats + secKyats;
+		return twoDigitString(hours) + " : " + twoDigitString(minutes) + " mins" + " : " + twoDigitString(seconds) + " secs";
+	}
+
+	private String twoDigitString(int number)
+	{
+
+		if (number == 0)
+		{
+			return "00";
+		}
+
+		if (number / 10 == 0)
+		{
+			return "0" + number;
+		}
+
+		return String.valueOf(number);
+	}
+
+	public void write(String log)
+	{
+		try
+		{
+			out = context.openFileOutput("MyCallLog", Context.MODE_APPEND);
+			out.write(log.getBytes());
+			out.close();
+		} catch (Exception e)
+		{
+			// no file
+			e.printStackTrace();
+		}
+	}
+
+	public void writeToFile(String fileName, String fileType, String body)
+	{
+		try
+		{
+			final File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Corporate/");
+
+			if (!dir.exists())
+			{
+				dir.mkdirs();
+			}
+
+			final File myFile = new File(dir, fileName + fileType);// + ".txt");
+
+			if (!myFile.exists())
+			{
+				myFile.createNewFile();
+			}
+
+			// fos = new FileOutputStream(myFile);
+
+			// fos.write(body.getBytes());
+			// fos.close();
+			FileWriter writer = new FileWriter(myFile, true);
+			writer.append(body);
+			writer.flush();
+			writer.close();
+		} catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+}
